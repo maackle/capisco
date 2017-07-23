@@ -23,7 +23,7 @@ view (State st) =
   div ! className "app" $ do
     style css
 
-    case st.route of
+    case st.routing.route of
       (Home) -> Homepage.view (State st)
       (NotFound url) -> NotFound.view (State st)
 

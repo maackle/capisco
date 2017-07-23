@@ -5,6 +5,10 @@ import App.Routes (Route, match)
 import Data.Newtype (class Newtype)
 
 newtype State = State
+  { routing :: RoutingState
+  }
+
+type RoutingState =
   { title :: String
   , route :: Route
   , loaded :: Boolean
@@ -14,7 +18,9 @@ derive instance newtypeState :: Newtype State _
 
 init :: String -> State
 init url = State
-  { title: config.title
-  , route: match url
-  , loaded: false
+  { routing:
+    { title: config.title
+      , route: match url
+      , loaded: false
+    }
   }
