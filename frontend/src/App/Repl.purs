@@ -8,6 +8,7 @@ module App.Repl
   , module Data.Tuple
 
   , module App.Events
+  , module App.Optics
   , module App.State
 
   , quux
@@ -28,6 +29,7 @@ import Data.Maybe
 import Data.Tuple hiding (lookup)
 
 import App.Events
+import App.Optics
 import App.State
 
 
@@ -69,7 +71,7 @@ testMap =
       ]
     ]
 
-mkPath a = getArticleLens $ L.fromFoldable a
+mkPath a = mkArticleLens $ L.fromFoldable a
 
 --
 -- examples = do

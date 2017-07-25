@@ -38,6 +38,8 @@ instance showArticle :: Show Article where
 
 type Slug = String
 type SlugPath = List Slug
+type SlugMap = Map Slug Article
+
 
 data Known = KnownVoid | KnownNo | KnownYes
 
