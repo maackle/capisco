@@ -2,7 +2,8 @@ module App.Config where
 
 type Config =
   { title :: String
-  , public_path :: String
+  , publicPath :: String
+  , apiBase :: String
   }
 
 foreign import config :: Config

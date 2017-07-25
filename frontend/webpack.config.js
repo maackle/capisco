@@ -27,7 +27,7 @@ module.exports = {
   output: {
     path: path.join(__dirname, 'static', 'dist'),
     filename: 'bundle.js',
-    publicPath: appConfig.public_path
+    publicPath: appConfig.publicPath
   },
   module: {
     loaders: [

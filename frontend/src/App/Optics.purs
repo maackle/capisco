@@ -22,8 +22,13 @@ articleLinks =
 
 lArticle slug = articleLinks <<< _Just <<< at slug
 
-mkArticleLens slugpath =
-  (foldl comp id $ slugpath)
+rootArticle = lens get set
   where
-    comp ln slug =
-       ln <<< (lArticle slug) <<< _Just
+    get = \(State st) -> st.article
+    set = \(State st) article -> State st { article = article }
+
+mkArticleLens slugpath =
+  rootArticle <<< (art2art slugpath)
+  where
+    art2art slugpath = (foldl comp id $ slugpath)
+    comp ln slug = ln <<< _Just <<< (lArticle slug)

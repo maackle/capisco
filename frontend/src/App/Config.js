@@ -1,6 +1,7 @@
 exports.config = {
   title: 'Pux Starter App',
-  public_path: process.env.NODE_ENV === 'production'
+  apiBase: 'http://localhost:3000/',
+  publicPath: process.env.NODE_ENV === 'production'
                ? '/dist/'
                : 'http://localhost:8080/dist/'
 }

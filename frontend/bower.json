@@ -12,7 +12,8 @@
     "purescript-css": "^3.0.0",
     "purescript-aff": "^3.0.0",
     "purescript-affjax": "^4.0.0",
-    "purescript-profunctor-lenses": "^3.2.0"
+    "purescript-profunctor-lenses": "^3.2.0",
+    "purescript-foreign": "^4.0.1"
   },
   "devDependencies": {
     "purescript-psci-support": "^3.0.0"
