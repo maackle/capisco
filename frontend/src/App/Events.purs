@@ -24,7 +24,7 @@ data Event
   = PageView Route
   | ChangeInput DOMEvent
   | InitRootArticle DOMEvent
-  | ToggleArticle SlugPath
+  | ToggleArticle SlugPath DOMEvent
 
   | FetchArticleTree SlugPath
   | ReceiveArticleTree SlugPath (Either String (Array Article))
@@ -54,8 +54,10 @@ foldp (InitRootArticle ev) state@(State st) =
       slug = st.inputText
       article = initArticle slug
 
-foldp (ToggleArticle slugpath) (State st) =
-  nofx $ State st -- TODO
+foldp (ToggleArticle slugpath _) state@(State st) =
+  nofx $ case updateArticle slugpath state (\a -> a {expanded = not a.expanded}) of
+    Just state' -> state'
+    Nothing -> state -- TODO: same thing, write function to map over Maybe and produce error effects
 
 foldp (FetchArticleTree slugpath) state@(State st) =
   case getArticle slugpath state of
@@ -81,9 +83,9 @@ foldp (ReceiveArticleTree slugpath result) state@(State st) =
   case result of
     Left err -> withfx state $ fxError err
     Right articles ->
-      nofx $ case updateArticle slugpath (_ { links = Just $ mkSlugMap articles }) state of
-        Nothing -> state
+      nofx $ case updateArticle slugpath state (_ { links = Just $ mkSlugMap articles }) of
         Just state' -> state'
+        Nothing -> state -- TODO: same thing, write function to map over Maybe and produce error effects
 
 
 
@@ -94,8 +96,8 @@ getArticle :: SlugPath -> State -> Maybe Article
 getArticle slugpath s =
   s ^? (mkArticleLens slugpath) <<< _Just
 
-updateArticle :: SlugPath -> (ArticleData -> ArticleData) -> State -> (Maybe State)
-updateArticle slugpath update s =
+updateArticle :: SlugPath -> State -> (ArticleData -> ArticleData) -> (Maybe State)
+updateArticle slugpath s update =
   getArticle slugpath s <#> \_ ->
     s # mkArticleLens slugpath <<< _Just %~ \(Article a) -> Article $ update a
 
