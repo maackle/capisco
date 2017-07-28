@@ -19,13 +19,12 @@ import Text.Smolder.HTML.Attributes (className)
 import Text.Smolder.Markup ((!))
 
 view :: State -> HTML Event
-view (State st) =
+view st =
   div ! className "app" $ do
     style css
-
     case st.routing.route of
-      (Home) -> Homepage.view (State st)
-      (NotFound url) -> NotFound.view (State st)
+      (Home) -> Homepage.view st
+      (NotFound url) -> NotFound.view st
 
 css :: CSS
 css = do

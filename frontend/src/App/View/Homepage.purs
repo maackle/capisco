@@ -19,12 +19,12 @@ import Text.Smolder.Markup (text, (!), (#!))
 type View = State -> HTML Event
 
 view :: View
-view (State st) =
+view state =
   div do
     h1 $ text "¿capisce?"
-    input ! type' "text" ! value st.inputText #! onChange ChangeInput
+    input ! type' "text" ! value state.inputText #! onChange ChangeInput
     button #! onClick InitRootArticle $ text "Set"
-    div $ for_ st.article $ flip viewArticleTree Nil
+    div $ for_ state.article $ flip viewArticleTree Nil
 
 viewArticleTree :: Article -> SlugPath -> HTML Event
 viewArticleTree article@(Article a) slugpath =
@@ -50,6 +50,6 @@ viewArticleTree article@(Article a) slugpath =
       div do
         h2 $ text $ a.slug
         button #! onClick (const $ RequestMarkArticle slugpath KnownNo) $ text "mark not known"
-        button #! onClick (ToggleArticle slugpath) $ text buttonText
+        button #! onClick (const $ ToggleArticle slugpath) $ text buttonText
       where
         buttonText = if a.expanded then "collapse" else "expand"

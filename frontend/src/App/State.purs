@@ -11,7 +11,7 @@ import Data.Tuple (Tuple(..))
 import Prelude
 
 init :: String -> State
-init url = State
+init url =
   { article: Nothing
   , inputText: ""
   , config: config
@@ -22,7 +22,7 @@ init url = State
     }
   }
 
-newtype State = State
+type State =
   { routing :: RoutingState
   , config :: Config
   , article :: Maybe Article
@@ -68,5 +68,4 @@ type RoutingState =
   , loaded :: Boolean
   }
 
-derive instance newtypeState :: Newtype State _
 derive instance newtypeArticle :: Newtype Article _
