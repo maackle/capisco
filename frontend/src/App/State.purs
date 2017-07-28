@@ -1,5 +1,7 @@
 module App.State where
 
+import Prelude
+
 import App.Config (Config(..), config)
 import App.Routes (Route, match)
 import Data.List (List)
@@ -8,7 +10,7 @@ import Data.Map as M
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, un)
 import Data.Tuple (Tuple(..))
-import Prelude
+
 
 init :: String -> State
 init url =

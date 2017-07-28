@@ -22,10 +22,7 @@ articleLinks =
 
 lArticle slug = articleLinks <<< _Just <<< at slug
 
-rootArticle = lens get set
-  where
-    get = \st -> st.article
-    set = \st article -> st { article = article }
+rootArticle = lens _.article (_ { article = _})
 
 mkArticleLens slugpath =
   rootArticle <<< (art2art slugpath)

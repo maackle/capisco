@@ -7,16 +7,18 @@ import Prelude
 import App.Optics (mkArticleLens, rootArticle)
 import App.Parsers (parseSubtree)
 import App.Routes (Route)
-import Control.Monad.Aff (attempt)
+import Control.Monad.Aff (Aff, attempt)
 import Control.Monad.Aff.Console (CONSOLE, error, log)
 import Control.Monad.Eff.Exception (Error)
+import Control.Monad.Writer (Writer, runWriter, tell)
 import Data.Bifunctor (bimap, lmap)
 import Data.Lens (_Just, (%~), (.~), (^?))
 import Data.List (List(..))
 import Data.Map as M
 import Data.Maybe (Maybe(..), maybe)
+import Data.Tuple (Tuple(..))
 import Network.HTTP.Affjax (AJAX, AffjaxRequest, AffjaxResponse, get)
-import Pux (EffModel, noEffects)
+import Pux (EffModel, CoreEffects, noEffects)
 import Pux.DOM.Events (DOMEvent, targetValue)
 import Util (normalizeURL)
 
@@ -24,7 +26,7 @@ data Event
   = PageView Route
   | ChangeInput DOMEvent
   | InitRootArticle DOMEvent
-  | ToggleArticle SlugPath DOMEvent
+  | ToggleArticle SlugPath
 
   | RequestMarkArticle SlugPath Known
 
@@ -41,6 +43,7 @@ fxLog msg = [ log msg *> pure Nothing ]
 fxError msg = [ error msg *> pure Nothing ]
 
 type Model s fx = EffModel s Event (AppEffects fx)
+type FX fx = Aff (AppEffects (CoreEffects fx)) (Maybe Event)
 
 foldp :: ∀ fx. Event -> State -> Model State fx
 
@@ -58,7 +61,7 @@ foldp (InitRootArticle ev) state =
       slug = state.inputText
       article = initArticle slug
 
-foldp (ToggleArticle slugpath _) state =
+foldp (ToggleArticle slugpath) state =
 
   case updateArticle slugpath state (\a -> a {expanded = not a.expanded}) of
     Just state' ->
@@ -104,10 +107,10 @@ foldp (ReceiveArticleTree slugpath result) state =
   case result of
     Left err -> withfx state $ fxError err
     Right articles ->
-      nofx $ case updateArticle slugpath state (_ { links = Just $ mkSlugMap articles, expanded = true }) of
-        Just state' -> state'
-        Nothing -> state -- TODO: same thing, write function to map over Maybe and produce error effects
-
+      updateArticleW slugpath state \(Article a) ->
+        pure $ Article a
+          { links = Just $ mkSlugMap articles
+          , expanded = true }
 
 
 updateRoute :: Route -> RoutingState -> RoutingState
@@ -121,18 +124,24 @@ updateArticle :: SlugPath -> State -> (ArticleData -> ArticleData) -> (Maybe Sta
 updateArticle slugpath s update =
   getArticle slugpath s <#> \_ ->
     s # mkArticleLens slugpath <<< _Just %~ \(Article a) -> Article $ update a
---
--- -- TODO: find a way to update Article AND effects, either sequentially or through a Traversal
--- updateArticle' :: SlugPath -> State -> (Article -> Model Article fx) -> Model State fx
--- updateArticle' slugpath state update =
---   case getArticle slugpath state of
---     Just _ -> -- have to get the article again with %~ so we just throw it away...
---       state # mkArticleLens slugpath <<< _Just %~
---         update >>> \(Tuple a' fx) ->
---           { article: Article a'
---           , effects: fx }
---     Nothing ->
---       { state: state.article}
+
+-- Update Article at slugpath using a monadic function over Writer
+-- for generating effects while doing the update
+updateArticleW :: ∀ fx. SlugPath -> State -> (Article -> Writer (Array (FX fx)) Article) -> Model State fx
+updateArticleW slugpath state update =
+  case getArticle slugpath state of
+    Just article ->
+      let
+        Tuple article' effects = runWriter $ update article
+        ln = mkArticleLens slugpath <<< _Just
+      in
+        { state: state # ln .~ article'
+        , effects: effects
+        }
+    Nothing ->
+      { state: state
+      , effects: [ error "Could not find article!" *> pure Nothing ]
+      }
 
 removeArticle :: SlugPath -> State -> State
 removeArticle slugpath s =
