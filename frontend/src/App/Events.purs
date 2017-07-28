@@ -62,25 +62,13 @@ foldp (InitRootArticle ev) state =
       article = initArticle slug
 
 foldp (ToggleArticle slugpath) state =
-
-  case updateArticle slugpath state (\a -> a {expanded = not a.expanded}) of
-    Just state' ->
-      { state: state'
-      , effects: [ --pure =<< state'.article]
-      ]
-      }
-    Nothing -> nofx state -- TODO: same thing, write function to map over Maybe and produce error effects
+  updateArticleW slugpath state \(Article a) ->
+    pure $ Article a {expanded = not a.expanded}
 
 foldp (RequestMarkArticle slugpath known) state =
-  case updateArticle slugpath state (_ { known = known }) of
-    Nothing ->
-      { state: state
-      , effects: []
-      }
-    Just state' ->
-      { state: state'
-      , effects: [ pure $ Just $ RequestArticleTree slugpath ]
-      }
+  updateArticleW slugpath state \(Article a) -> do
+    tell [ pure $ Just $ RequestArticleTree slugpath ]
+    pure $ Article a { known = known }
 
 foldp (RequestArticleTree slugpath) state =
   case getArticle slugpath state of
