@@ -26,7 +26,9 @@ data Event
   | InitRootArticle DOMEvent
   | ToggleArticle SlugPath DOMEvent
 
-  | FetchArticleTree SlugPath
+  | RequestMarkArticle SlugPath Known
+
+  | RequestArticleTree SlugPath
   | ReceiveArticleTree SlugPath (Either String (Array Article))
 
 type AppEffects fx = (ajax :: AJAX, console :: CONSOLE | fx)
@@ -49,19 +51,36 @@ foldp (ChangeInput ev) (State st) =
 foldp (InitRootArticle ev) state@(State st) =
   withfx
   (setRootArticle article state)
-  $ [ pure $ Just $ FetchArticleTree Nil ]
+  $ [ pure $ Just $ RequestArticleTree Nil ]
     where
       slug = st.inputText
       article = initArticle slug
 
 foldp (ToggleArticle slugpath _) state@(State st) =
-  nofx $ case updateArticle slugpath state (\a -> a {expanded = not a.expanded}) of
-    Just state' -> state'
-    Nothing -> state -- TODO: same thing, write function to map over Maybe and produce error effects
 
-foldp (FetchArticleTree slugpath) state@(State st) =
+  case updateArticle slugpath state (\a -> a {expanded = not a.expanded}) of
+    Just state' ->
+      { state: state'
+      , effects: [ --pure =<< state'.article]
+      ]
+      }
+    Nothing -> nofx state -- TODO: same thing, write function to map over Maybe and produce error effects
+
+foldp (RequestMarkArticle slugpath known) state@(State st) =
+  case updateArticle slugpath state (_ { known = known }) of
+    Nothing ->
+      { state: state
+      , effects: []
+      }
+    Just state' ->
+      { state: state'
+      , effects: [ pure $ Just $ RequestArticleTree slugpath ]
+      }
+
+foldp (RequestArticleTree slugpath) state@(State st) =
   case getArticle slugpath state of
     Just (Article article) ->
+      -- TODO: set article expanded here
       withfx state $ [ do
         let url = normalizeURL $ st.config.apiBase <> "/lookup/" <> article.slug
         res <- attempt $ get url
@@ -83,7 +102,7 @@ foldp (ReceiveArticleTree slugpath result) state@(State st) =
   case result of
     Left err -> withfx state $ fxError err
     Right articles ->
-      nofx $ case updateArticle slugpath state (_ { links = Just $ mkSlugMap articles }) of
+      nofx $ case updateArticle slugpath state (_ { links = Just $ mkSlugMap articles, expanded = true }) of
         Just state' -> state'
         Nothing -> state -- TODO: same thing, write function to map over Maybe and produce error effects
 
@@ -100,6 +119,11 @@ updateArticle :: SlugPath -> State -> (ArticleData -> ArticleData) -> (Maybe Sta
 updateArticle slugpath s update =
   getArticle slugpath s <#> \_ ->
     s # mkArticleLens slugpath <<< _Just %~ \(Article a) -> Article $ update a
+
+-- updateArticle' :: SlugPath -> State -> (ArticleData -> Tuple ArticleData (Array Event)) -> (Maybe State)
+-- updateArticle' slugpath s update =
+--   getArticle slugpath s <#> \_ ->
+--     s # mkArticleLens slugpath <<< _Just %~ \(Article a) -> Article $ update a
 
 removeArticle :: SlugPath -> State -> State
 removeArticle slugpath s =

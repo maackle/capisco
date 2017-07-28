@@ -4,11 +4,11 @@ import Data.Maybe
 import Text.Smolder.HTML
 
 import App.Events (Event(..))
-import App.State (Article(..), State(..), SlugPath)
+import App.State (Article(..), Known(..), SlugPath, State(..))
 import Control.Bind (discard)
 import Data.Foldable (for_)
 import Data.Function (flip, ($))
-import Data.List (List(..), snoc)
+import Data.List (List(..), length, snoc)
 import Prelude hiding (div)
 import Pux.DOM.Events (onChange, onClick)
 import Pux.DOM.HTML (HTML)
@@ -27,7 +27,7 @@ view (State st) =
     div $ for_ st.article $ flip viewArticleTree Nil
 
 viewArticleTree :: Article -> SlugPath -> HTML Event
-viewArticleTree (Article a) slugpath =
+viewArticleTree article@(Article a) slugpath =
   ul subtree
   where
     subtree =
@@ -38,12 +38,18 @@ viewArticleTree (Article a) slugpath =
             nameDisplay
           Just links -> do
             nameDisplay
-            for_ links \(Article a) ->
-              li $ text a.slug
+            for_ links \article'@(Article a') ->
+              li $ viewArticleTree article' (snoc slugpath a'.slug)
       else
         nameDisplay
 
+    -- at least one layer deep
+    isSubArticle = length slugpath > 0
+
     nameDisplay =
       div do
-        h2 $ text $ a.slug <> "!" -- TODO: recursive call with (snoc slugpath a.slug)
-        button #! onClick (ToggleArticle slugpath) $ text "toggle"
+        h2 $ text $ a.slug
+        button #! onClick (const $ RequestMarkArticle slugpath KnownNo) $ text "mark not known"
+        button #! onClick (ToggleArticle slugpath) $ text buttonText
+      where
+        buttonText = if a.expanded then "collapse" else "expand"

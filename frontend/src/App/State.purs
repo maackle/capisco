@@ -42,7 +42,7 @@ initArticle :: Slug -> Article
 initArticle slug = Article
   { slug: slug
   , url: "https://en.wikipedia.org/wiki/" <> slug
-  , expanded: true
+  , expanded: false
   , known: KnownVoid
   , links: Nothing
   }
