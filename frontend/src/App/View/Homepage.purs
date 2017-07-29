@@ -34,8 +34,9 @@ viewArticleTree article@(Article a) slugpath =
       if a.expanded
       then
         case a.links of
-          Nothing ->
+          Nothing -> do
             nameDisplay
+            text "loading..."
           Just links -> do
             nameDisplay
             for_ links \article'@(Article a') ->
@@ -50,6 +51,6 @@ viewArticleTree article@(Article a) slugpath =
       div do
         h2 $ text $ a.slug
         button #! onClick (const $ RequestMarkArticle slugpath KnownNo) $ text "mark not known"
-        button #! onClick (const $ ToggleArticle slugpath) $ text buttonText
+        button #! onClick (const $ SetArticleToggle slugpath (not a.expanded)) $ text buttonText
       where
         buttonText = if a.expanded then "collapse" else "expand"

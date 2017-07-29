@@ -26,7 +26,7 @@ data Event
   = PageView Route
   | ChangeInput DOMEvent
   | InitRootArticle DOMEvent
-  | ToggleArticle SlugPath
+  | SetArticleToggle SlugPath Boolean
 
   | RequestMarkArticle SlugPath Known
 
@@ -61,9 +61,9 @@ foldp (InitRootArticle ev) state =
       slug = state.inputText
       article = initArticle slug
 
-foldp (ToggleArticle slugpath) state =
+foldp (SetArticleToggle slugpath expanded) state =
   updateArticleW slugpath state \(Article a) ->
-    pure $ Article a {expanded = not a.expanded}
+    pure $ Article a {expanded = expanded}
 
 foldp (RequestMarkArticle slugpath known) state =
   updateArticleW slugpath state \(Article a) -> do
@@ -73,21 +73,24 @@ foldp (RequestMarkArticle slugpath known) state =
 foldp (RequestArticleTree slugpath) state =
   case getArticle slugpath state of
     Just (Article article) ->
-      -- TODO: set article expanded here
-      withfx state $ [ do
-        let url = normalizeURL $ state.config.apiBase <> "/lookup/" <> article.slug
-        res <- attempt $ get url
+      let
+        fetchEffect = do
+          let url = normalizeURL $ state.config.apiBase <> "/lookup/" <> article.slug
+          res <- attempt $ get url
 
-        let
-          -- Just to see what's going on here
-          r :: Either Error (AffjaxResponse String)
-          r = res
+          let
+            -- Just to see what's going on here
+            r :: Either Error (AffjaxResponse String)
+            r = res
 
-          result :: Either String String
-          result = lmap show $ r <#> _.response
+            result :: Either String String
+            result = lmap show $ r <#> _.response
 
-        pure $ Just $ ReceiveArticleTree slugpath (result >>= parseSubtree)
-      ]
+          pure $ Just $ ReceiveArticleTree slugpath (result >>= parseSubtree)
+
+        expandEffect = pure $ Just $ SetArticleToggle slugpath true
+
+      in withfx state $ [ fetchEffect, expandEffect ]
     Nothing ->
       nofx state
 
