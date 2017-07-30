@@ -7,6 +7,9 @@ import App.View.Homepage as Homepage
 import App.View.NotFound as NotFound
 import CSS (CSS, backgroundColor, borderRadius, color, display, fontSize, fromString, inlineBlock, key, marginLeft, marginRight, marginTop, maxWidth, padding, pct, px, value, (?))
 import CSS.Border (border, solid)
+import CSS.Common (none)
+import CSS.ListStyle (listStyle)
+import CSS.ListStyle.Type (listStyleType)
 import CSS.Text (textDecoration, noneTextDecoration, letterSpacing)
 import CSS.Text.Transform (textTransform, uppercase)
 import CSS.TextAlign (center, textAlign)
@@ -46,6 +49,9 @@ css = do
     letterSpacing (6.0 #px)
     textAlign center
 
+  fromString "ul" ? do
+    listStyleType none
+
   fromString ".container" ? do
     maxWidth (80.0 #pct)
 
@@ -55,7 +61,7 @@ css = do
     padding (6.0 #px) (6.0 #px) (6.0 #px) (6.0 #px)
     textDecoration noneTextDecoration
 
-  fromString ".known-icon" ? marginRight (10.0 #px)
+  fromString ".known-icon-bullet" ? marginRight (10.0 #px)
 
   fromString ".known-void" ? color gray
   fromString ".known-yes" ? color green

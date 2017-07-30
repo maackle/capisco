@@ -49,12 +49,10 @@ viewArticleTree article@(Article a) slugpath =
 
     nameDisplay =
       div do
-        knownIcon a.known
+        span ! className "known-icon-bullet" $ knownIcon a.known
         text $ a.slug
         for_ [KnownVoid, KnownNo, KnownYes] \k ->
-          button #! onClick (const $ RequestMarkArticle slugpath k) $ do
-            text "mark "
-            knownIcon k
+          button #! onClick (const $ RequestMarkArticle slugpath k) $ knownIcon k
         button #! onClick (const $ SetArticleToggle slugpath (not a.expanded)) $ text buttonText
       where
         buttonText = if a.expanded then "collapse" else "expand"

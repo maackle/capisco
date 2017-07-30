@@ -8,6 +8,11 @@ const app = express()
 
 const db = neo4j.driver('bolt://localhost', neo4j.auth.basic("neo4j", "neo4j"));
 
+const knownTypes = [
+  'KNOWN_NO',
+  'KNOWN_YES',
+  'KNOWN_VOID',
+]
 const cypher = (query, params) => {
   const session = db.session()
   return session.run(query, params)
@@ -103,22 +108,21 @@ app.get('/lookup/:term', (req, res) => {
 app.get('/mark/:term/:level', (req, res) => {
   const userId = 11  // TODO
   const {term} = req.params
-  const level = R.toLower(req.params.level)
-  if (!R.contains(level, ['yes', 'no'])) {
+  const relationship = req.params.level
+  const relationshipUnion = ':' + knownTypes.join('|:')
+  if (!R.contains(relationship, knownTypes)) {
     res.send("invalid relationship type")
     return
   }
-  const relationship = level == 'yes' ? ':KNOWN_YES' : ':KNOWN_NO'
   const query = `
     MATCH (a:Article {slug: {term} })
     MATCH (u:User {id: {userId} })
-    OPTIONAL MATCH (u)-[r:KNOWN_YES|:KNOWN_NO]->(a)
+    OPTIONAL MATCH (u)-[r${relationshipUnion}]->(a)
     DELETE r
-    MERGE (u)-[${relationship}]->(a)
+    MERGE (u)-[:${relationship}]->(a)
     RETURN u
   `
   cypher(query, {term, userId}).then(r => {
-    console.log(r)
     res.send("OK")
   })
 })
