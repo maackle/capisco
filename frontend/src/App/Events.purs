@@ -17,7 +17,8 @@ import Data.List (List(..))
 import Data.Map as M
 import Data.Maybe (Maybe(..), maybe)
 import Data.Tuple (Tuple(..))
-import Network.HTTP.Affjax (AJAX, AffjaxRequest, AffjaxResponse, get)
+import Network.HTTP.Affjax (AJAX, AffjaxRequest, AffjaxResponse, URL)
+import Network.HTTP.Affjax as AX
 import Pux (EffModel, CoreEffects, noEffects)
 import Pux.DOM.Events (DOMEvent, targetValue)
 import Util (normalizeURL)
@@ -29,6 +30,7 @@ data Event
   | SetArticleToggle SlugPath Boolean
 
   | RequestMarkArticle SlugPath Known
+  | ReceiveMarkArticle SlugPath (Either String Known)
 
   | RequestArticleTree SlugPath
   | ReceiveArticleTree SlugPath (Either String (Array Article))
@@ -66,25 +68,49 @@ foldp (SetArticleToggle slugpath expanded) state =
     pure $ Article a {expanded = expanded}
 
 foldp (RequestMarkArticle slugpath known) state =
-  updateArticleW slugpath state \(Article a) -> do
-    tell [ pure $ Just $ RequestArticleTree slugpath ]
-    pure $ Article a { known = known }
+  case getArticle slugpath state of
+    Just (Article article) ->
+      let
+        url :: URL
+        url = normalizeURL
+              $ state.config.apiBase
+              <> "/mark/"
+              <> article.slug
+              <> "/"
+              <> (show known)
+
+        fetchEffect =
+          do
+            res <- attempt $ AX.get url
+            let
+              result :: Either String String
+              result = lmap show $ res <#> _.response
+            pure $ Just $ ReceiveMarkArticle slugpath (result *> Right known)
+      in withfx state [ fetchEffect ]
+    Nothing ->
+      nofx state
+
+
+foldp (ReceiveMarkArticle slugpath result) state =
+  case result of
+    Left err -> withfx state $ fxError err
+    Right known ->
+      updateArticleW slugpath state \(Article a) -> do
+        tell [ pure $ Just $ RequestArticleTree slugpath ]
+        pure $ Article a { known = known }
 
 foldp (RequestArticleTree slugpath) state =
   case getArticle slugpath state of
     Just (Article article) ->
       let
         fetchEffect = do
-          let url = normalizeURL $ state.config.apiBase <> "/lookup/" <> article.slug
-          res <- attempt $ get url
+          let url :: URL
+              url = normalizeURL $ state.config.apiBase <> "/lookup/" <> article.slug
+          res <- attempt $ AX.get url
 
           let
-            -- Just to see what's going on here
-            r :: Either Error (AffjaxResponse String)
-            r = res
-
             result :: Either String String
-            result = lmap show $ r <#> _.response
+            result = lmap show $ res <#> _.response
 
           pure $ Just $ ReceiveArticleTree slugpath (result >>= parseSubtree)
 

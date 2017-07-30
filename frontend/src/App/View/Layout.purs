@@ -1,15 +1,15 @@
 module App.View.Layout where
 
-import App.View.Homepage as Homepage
-import App.View.NotFound as NotFound
+import App.Events (Event)
 import App.Routes (Route(NotFound, Home))
 import App.State (State(..))
-import App.Events (Event)
-import CSS (CSS, fromString, (?), fontSize, display, inlineBlock, marginTop, marginRight, marginLeft, px, value, key, color, backgroundColor, padding, borderRadius)
+import App.View.Homepage as Homepage
+import App.View.NotFound as NotFound
+import CSS (CSS, backgroundColor, borderRadius, color, display, fontSize, fromString, inlineBlock, key, marginLeft, marginRight, marginTop, maxWidth, padding, pct, px, value, (?))
 import CSS.Border (border, solid)
-import CSS.TextAlign (center, textAlign)
 import CSS.Text (textDecoration, noneTextDecoration, letterSpacing)
 import CSS.Text.Transform (textTransform, uppercase)
+import CSS.TextAlign (center, textAlign)
 import Color (rgb)
 import Control.Bind (discard)
 import Data.Function (($), (#))
@@ -36,13 +36,16 @@ css = do
     backgroundColor (rgb 0 20 30)
     key (fromString "font-family") (value "-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,Oxygen-Sans,Ubuntu,Cantarell,\"Helvetica Neue\",sans-serif")
     color white
-    textAlign center
 
   fromString "h1" ? do
     fontSize (48.0 #px)
     marginTop (48.0 #px)
     textTransform uppercase
     letterSpacing (6.0 #px)
+    textAlign center
+
+  fromString ".container" ? do
+    maxWidth (80.0 #pct)
 
   fromString "a" ? do
     display inlineBlock

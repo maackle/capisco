@@ -64,6 +64,11 @@ mkSlugMap articles =
 
 data Known = KnownVoid | KnownNo | KnownYes
 
+instance showKnown :: Show Known where
+  show KnownVoid = "void"
+  show _ = "no"
+  show KnownYes = "yes"
+
 type RoutingState =
   { title :: String
   , route :: Route

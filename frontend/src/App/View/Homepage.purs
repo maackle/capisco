@@ -49,7 +49,7 @@ viewArticleTree article@(Article a) slugpath =
 
     nameDisplay =
       div do
-        h2 $ text $ a.slug
+        text $ a.slug
         button #! onClick (const $ RequestMarkArticle slugpath KnownNo) $ text "mark not known"
         button #! onClick (const $ SetArticleToggle slugpath (not a.expanded)) $ text buttonText
       where
