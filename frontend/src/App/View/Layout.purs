@@ -28,14 +28,16 @@ view st =
 
 css :: CSS
 css = do
-  let green = rgb 14 196 172
+  let red = rgb 196 14 172
+      green = rgb 14 196 172
       blue = rgb 14 154 196
       white = rgb 250 250 250
+      gray = rgb 180 180 180
 
   fromString "body" ? do
-    backgroundColor (rgb 0 20 30)
+    backgroundColor (rgb 240 240 240)
     key (fromString "font-family") (value "-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,Oxygen-Sans,Ubuntu,Cantarell,\"Helvetica Neue\",sans-serif")
-    color white
+    color (rgb 30 30 30)
 
   fromString "h1" ? do
     fontSize (48.0 #px)
@@ -53,20 +55,8 @@ css = do
     padding (6.0 #px) (6.0 #px) (6.0 #px) (6.0 #px)
     textDecoration noneTextDecoration
 
-  fromString ".guide" ? do
-    border solid (2.0 #px) green
-    color green
-    marginRight (10.0 #px)
+  fromString ".known-icon" ? marginRight (10.0 #px)
 
-  fromString ".guide:hover" ? do
-    backgroundColor green
-    color white
-
-  fromString ".github" ? do
-    border solid (2.0 #px) blue
-    color blue
-    marginLeft (10.0 #px)
-
-  fromString ".github:hover" ? do
-    backgroundColor blue
-    color white
+  fromString ".known-void" ? color gray
+  fromString ".known-yes" ? color green
+  fromString ".known-no" ? color red

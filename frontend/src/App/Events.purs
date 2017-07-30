@@ -61,7 +61,7 @@ foldp (InitRootArticle ev) state =
   $ [ pure $ Just $ RequestArticleTree Nil ]
     where
       slug = state.inputText
-      article = initArticle slug
+      article = initArticle slug KnownVoid -- TODO: read known value
 
 foldp (SetArticleToggle slugpath expanded) state =
   updateArticleW slugpath state \(Article a) ->
@@ -95,9 +95,13 @@ foldp (ReceiveMarkArticle slugpath result) state =
   case result of
     Left err -> withfx state $ fxError err
     Right known ->
-      updateArticleW slugpath state \(Article a) -> do
-        tell [ pure $ Just $ RequestArticleTree slugpath ]
-        pure $ Article a { known = known }
+      updateArticleW slugpath state \(Article a) ->
+        case known of
+          KnownNo -> do
+            tell [ pure $ Just $ RequestArticleTree slugpath ]
+            pure $ Article a { known = known }
+          _ ->
+            pure $ Article a { known = known }
 
 foldp (RequestArticleTree slugpath) state =
   case getArticle slugpath state of

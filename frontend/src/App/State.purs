@@ -9,13 +9,14 @@ import Data.Map (Map)
 import Data.Map as M
 import Data.Maybe (Maybe(..))
 import Data.Newtype (class Newtype, un)
+import Data.String.Read (class Read)
 import Data.Tuple (Tuple(..))
 
 
 init :: String -> State
 init url =
   { article: Nothing
-  , inputText: ""
+  , inputText: "homotopy"
   , config: config
   , routing:
     { title: config.title
@@ -40,14 +41,18 @@ type ArticleData =
   , links :: Maybe (Map Slug Article)
   }
 
-initArticle :: Slug -> Article
-initArticle slug = Article
+initArticle :: Slug -> Known -> Article
+initArticle slug known = Article
   { slug: slug
   , url: "https://en.wikipedia.org/wiki/" <> slug
-  , expanded: false
-  , known: KnownVoid
+  , expanded: expanded
+  , known: known
   , links: Nothing
   }
+  where
+    expanded = case known of
+      KnownNo -> true
+      _ -> false
 
 instance showArticle :: Show Article where
   show (Article a) = "Article<" <> a.slug <> "> " <> show a.links
@@ -65,9 +70,15 @@ mkSlugMap articles =
 data Known = KnownVoid | KnownNo | KnownYes
 
 instance showKnown :: Show Known where
-  show KnownVoid = "void"
-  show _ = "no"
-  show KnownYes = "yes"
+  show KnownVoid = "KNOWN_VOID"
+  show KnownNo = "KNOWN_NO"
+  show KnownYes = "KNOWN_YES"
+
+instance readKnown :: Read Known where
+  read "KNOWN_VOID" = Just KnownVoid
+  read "KNOWN_NO" = Just KnownNo
+  read "KNOWN_YES" = Just KnownYes
+  read _ = Nothing
 
 type RoutingState =
   { title :: String

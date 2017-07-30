@@ -1,13 +1,15 @@
 module App.Parsers where
 
+import Data.Maybe
 import Prelude
 
-import App.State (Article(..), initArticle)
+import App.State (Article(..), Known(..), initArticle)
 import Control.Monad.Except (catchError, runExcept)
 import Data.Bifunctor (lmap)
-import Data.Either (Either)
-import Data.Foreign (Foreign, F, readArray, readString)
+import Data.Either (Either(..))
+import Data.Foreign (F, Foreign, ForeignError(..), fail, readArray, readString, toForeign)
 import Data.Foreign.Index ((!))
+import Data.String.Read (read)
 import Data.Traversable (traverse)
 import Util.Foreign (foreignValue)
 
@@ -18,7 +20,12 @@ readSubtree json =
     readArticle :: Foreign -> F Article
     readArticle a = do
       slug <- a ! "slug" >>= readString
-      pure $ initArticle slug
+      knownStr <- a ! "known" >>= readString
+      known <- maybe
+                  (fail $ ForeignError "bad 'known' value")
+                  pure
+                  (read knownStr :: Maybe Known)
+      pure $ initArticle slug known
 
 parseSubtree :: String -> Either String (Array Article)
 parseSubtree json =

@@ -91,7 +91,7 @@ app.get('/lookup/:term', (req, res) => {
             slug: rec.get(0).properties.slug,
             url: rec.get(0).properties.url,
             name: rec.get(1),
-            known: rec.get(2),
+            known: rec.get(2) || "KNOWN_VOID",
           }
         });
         res.send(JSON.stringify(subtree));

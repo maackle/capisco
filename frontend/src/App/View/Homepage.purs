@@ -49,8 +49,18 @@ viewArticleTree article@(Article a) slugpath =
 
     nameDisplay =
       div do
+        knownIcon a.known
         text $ a.slug
-        button #! onClick (const $ RequestMarkArticle slugpath KnownNo) $ text "mark not known"
+        for_ [KnownVoid, KnownNo, KnownYes] \k ->
+          button #! onClick (const $ RequestMarkArticle slugpath k) $ do
+            text "mark "
+            knownIcon k
         button #! onClick (const $ SetArticleToggle slugpath (not a.expanded)) $ text buttonText
       where
         buttonText = if a.expanded then "collapse" else "expand"
+
+knownIcon :: ∀ e. Known -> HTML e
+knownIcon = case _ of
+  KnownVoid -> span ! className "known-icon known-void" $ text "?"
+  KnownYes  -> span ! className "known-icon known-yes"  $ text "✓"
+  KnownNo   -> span ! className "known-icon known-no"   $ text "✗"

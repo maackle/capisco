@@ -13,7 +13,8 @@
     "purescript-aff": "^3.0.0",
     "purescript-affjax": "^4.0.0",
     "purescript-profunctor-lenses": "^3.2.0",
-    "purescript-foreign": "^4.0.1"
+    "purescript-foreign": "^4.0.1",
+    "purescript-read": "^1.0.0"
   },
   "devDependencies": {
     "purescript-psci-support": "^3.0.0"
