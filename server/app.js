@@ -74,12 +74,28 @@ app.get('/lookup/:term', (req, res) => {
       MERGE (c:Article {slug: {term} })
       FOREACH (
         d IN {links} |
-        MERGE (a:Article {slug: d.slug})
+        MERGE (a:Article {slug: d.slug, url: d.url})
         MERGE (c)-[:LINK {name: d.name}]->(a)
       )
     `
     cypher(query, {term, links}).then(() => {
-      res.send(JSON.stringify(links))
+      const query = `
+        MATCH (c:Article {slug: {term}})
+        MATCH (c)-[r]->(a)
+        OPTIONAL MATCH (:User)-[k]->(a)
+        RETURN a, r.name, type(k)
+      `
+      cypher(query, {term, links}).then(({records}) => {
+        const subtree = records.map(rec => {
+          return {
+            slug: rec.get(0).properties.slug,
+            url: rec.get(0).properties.url,
+            name: rec.get(1),
+            known: rec.get(2),
+          }
+        });
+        res.send(JSON.stringify(subtree));
+      })
     })
   })
 })
