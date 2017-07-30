@@ -45,14 +45,10 @@ initArticle :: Slug -> Known -> Article
 initArticle slug known = Article
   { slug: slug
   , url: "https://en.wikipedia.org/wiki/" <> slug
-  , expanded: expanded
+  , expanded: false
   , known: known
   , links: Nothing
   }
-  where
-    expanded = case known of
-      KnownNo -> true
-      _ -> false
 
 instance showArticle :: Show Article where
   show (Article a) = "Article<" <> a.slug <> "> " <> show a.links

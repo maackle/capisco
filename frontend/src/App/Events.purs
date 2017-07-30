@@ -64,7 +64,10 @@ foldp (InitRootArticle ev) state =
       article = initArticle slug KnownVoid -- TODO: read known value
 
 foldp (SetArticleToggle slugpath expanded) state =
-  updateArticleW slugpath state \(Article a) ->
+  updateArticleW slugpath state \(Article a) -> do
+    tell $ case expanded, a.links of
+      true, Nothing -> [ pure $ Just $ RequestArticleTree slugpath ]
+      _, _ -> []
     pure $ Article a {expanded = expanded}
 
 foldp (RequestMarkArticle slugpath known) state =
@@ -90,18 +93,15 @@ foldp (RequestMarkArticle slugpath known) state =
     Nothing ->
       nofx state
 
-
 foldp (ReceiveMarkArticle slugpath result) state =
   case result of
     Left err -> withfx state $ fxError err
     Right known ->
-      updateArticleW slugpath state \(Article a) ->
-        case known of
-          KnownNo -> do
-            tell [ pure $ Just $ RequestArticleTree slugpath ]
-            pure $ Article a { known = known }
-          _ ->
-            pure $ Article a { known = known }
+      updateArticleW slugpath state \(Article a) -> do
+        tell $ case known of
+          KnownNo -> [ pure $ Just $ RequestArticleTree slugpath ]
+          _ -> []
+        pure $ Article a { known = known }
 
 foldp (RequestArticleTree slugpath) state =
   case getArticle slugpath state of
@@ -118,9 +118,7 @@ foldp (RequestArticleTree slugpath) state =
 
           pure $ Just $ ReceiveArticleTree slugpath (result >>= parseSubtree)
 
-        expandEffect = pure $ Just $ SetArticleToggle slugpath true
-
-      in withfx state $ [ fetchEffect, expandEffect ]
+      in withfx state $ [ fetchEffect ]
     Nothing ->
       nofx state
 
