@@ -24,6 +24,9 @@ view state =
     h1 $ text "¿capisce?"
     input ! type' "text" ! value state.inputText #! onChange ChangeInput
     button #! onClick InitRootArticle $ text "Set"
+    br
+    button #! onClick (const $ (ExpandAllRelevant Nil)) $ text "Expand all"
+    button #! onClick (const $ (CollapseAllRelevant Nil)) $ text "Collapse all"
     div $ for_ state.article $ flip viewArticleTree Nil
 
 viewArticleTree :: Article -> SlugPath -> HTML Event

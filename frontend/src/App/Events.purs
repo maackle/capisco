@@ -10,13 +10,15 @@ import App.Routes (Route)
 import Control.Monad.Aff (Aff, attempt)
 import Control.Monad.Aff.Console (CONSOLE, error, log)
 import Control.Monad.Eff.Exception (Error)
-import Control.Monad.Writer (Writer, runWriter, tell)
+import Control.Monad.Writer (Writer, execWriter, runWriter, tell)
+import Data.Array (concat, foldl, fromFoldable, uncons)
 import Data.Bifunctor (bimap, lmap)
 import Data.Lens (_Just, (%~), (.~), (^?))
-import Data.List (List(..))
+import Data.List (List(..), (:))
 import Data.Map as M
 import Data.Maybe (Maybe(..), maybe)
-import Data.Tuple (Tuple(..))
+import Data.Traversable (sequence)
+import Data.Tuple (Tuple(..), fst)
 import Network.HTTP.Affjax (AJAX, AffjaxRequest, AffjaxResponse, URL)
 import Network.HTTP.Affjax as AX
 import Pux (EffModel, CoreEffects, noEffects)
@@ -28,6 +30,9 @@ data Event
   | ChangeInput DOMEvent
   | InitRootArticle DOMEvent
   | SetArticleToggle SlugPath Boolean
+
+  | ExpandAllRelevant SlugPath
+  | CollapseAllRelevant SlugPath
 
   | RequestMarkArticle SlugPath Known
   | ReceiveMarkArticle SlugPath (Either String Known)
@@ -70,6 +75,53 @@ foldp (SetArticleToggle slugpath expanded) state =
       _, _ -> []
     pure $ Article a {expanded = expanded}
 
+-- TODO
+foldp (ExpandAllRelevant slugpath) state =
+  updateArticleW slugpath state \(Article a) ->
+    pure $ (Article a { links = a.links <#> (map doExpand) })
+    where
+      doExpand :: Article -> Article
+      doExpand (Article a) =
+        case a.known, a.links of
+          KnownNo, Just links ->
+            Article a { links = Just $ links <#> doExpand, expanded = true }
+          _, _ -> Article a
+
+-- TODO
+foldp (CollapseAllRelevant slugpath) state =
+  updateArticleW slugpath state \(Article a) ->
+    pure $ (Article a { links = a.links <#> (map doCollapse) })
+    where
+      doCollapse :: Article -> Article
+      doCollapse (Article a) =
+        case a.known, a.links of
+          KnownNo, Just links ->
+            Article a { links = Just $ links <#> doCollapse, expanded = false }
+          _, _ -> Article a
+-- -- TODO
+-- foldp (ExpandAllRelevant slugpath) state =
+--   updateArticleW slugpath state \(Article a) ->
+--     doExpand (Article a)
+--     where
+--       doExpand :: Article -> Writer (Array (FX fx)) Article
+--       doExpand (Article a) =
+--         case a.known, a.links of
+--           KnownNo, Just links ->
+--             let
+--               writers :: M.Map Slug (Writer (Array (FX fx)) Article)
+--               writers = links <#> doExpand
+--
+--               links' = writers <#> (fst <<< runWriter)
+--               -- fx :: FX fx
+--               fx = execWriter (sequence $ (fromFoldable $ M.values writers))
+--               -- fx = foldl (\w a -> concat $ [a, (execWriter w)]) [] writers
+--             in do
+--               tell [ pure $ Just $ SetArticleToggle slugpath true]
+--               tell fx
+--               pure $ Article a {links = Just links'}
+--           _, _ -> pure $ Article a
+
+
 foldp (RequestMarkArticle slugpath known) state =
   case getArticle slugpath state of
     Just (Article article) ->
@@ -93,6 +145,7 @@ foldp (RequestMarkArticle slugpath known) state =
     Nothing ->
       nofx state
 
+-- | TODO: update current tree with markings if valid
 foldp (ReceiveMarkArticle slugpath result) state =
   case result of
     Left err -> withfx state $ fxError err
@@ -139,10 +192,10 @@ getArticle :: SlugPath -> State -> Maybe Article
 getArticle slugpath s =
   s ^? (mkArticleLens slugpath) <<< _Just
 
-updateArticle :: SlugPath -> State -> (ArticleData -> ArticleData) -> (Maybe State)
+updateArticle :: SlugPath -> State -> (Article -> Article) -> (Maybe State)
 updateArticle slugpath s update =
   getArticle slugpath s <#> \_ ->
-    s # mkArticleLens slugpath <<< _Just %~ \(Article a) -> Article $ update a
+    s # mkArticleLens slugpath <<< _Just %~ update
 
 -- Update Article at slugpath using a monadic function over Writer
 -- for generating effects while doing the update
