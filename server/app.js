@@ -27,38 +27,40 @@ const cypher = (query, params) => {
     })
 }
 
-const getLinks = (url, then) => {
+const getLinks = (url) => {
   let links = [], done = false;
-  return osmosis
-    .get(url)
-    .find('#bodyContent .mw-parser-output')
-    .find('p > a, #toc > .toctitle')
-    .set('name')
-    .set({
-      toctitle: 'h2',
-      url: ['@href'],
-    })
-    .data(listing => {
-      const {name, url} = listing
-      if(listing.toctitle) {
-        // only read links up to the table of contents
-        done = true
-      }
-      if (!done && url.length == 1 && name) {
-        const matches = url[0].match(/\/wiki\/(.+)/)
-        if (matches) {
-          links.push({
-            name,
-            url: url[0],
-            slug: matches[1],
-          })
-        }
-      }
-    })
-    .done(() => then(links))
-    .log(console.log)
-    .error(console.log)
-    .debug(console.log)
+  return new Promise((resolve, reject) => {
+    osmosis
+        .get(url)
+        .find('#bodyContent .mw-parser-output')
+        .find('p > a, #toc > .toctitle')
+        .set('name')
+        .set({
+          toctitle: 'h2',
+          url: ['@href'],
+        })
+        .data(listing => {
+          const {name, url} = listing
+          if(listing.toctitle) {
+            // only read links up to the table of contents
+            done = true
+          }
+          if (!done && url.length == 1 && name) {
+            const matches = url[0].match(/\/wiki\/(.+)/)
+            if (matches) {
+              links.push({
+                name,
+                url: url[0],
+                slug: matches[1],
+              })
+            }
+          }
+        })
+        .done(() => resolve(links))
+        .log(console.log)
+        .error(console.log)
+        .debug(console.log)
+  })
 }
 
 app.use(function(req, res, next) {
@@ -74,7 +76,7 @@ app.get('/', function (req, res) {
 app.get('/lookup/:term', (req, res) => {
   const {term} = req.params
   const url = `https://en.wikipedia.org/wiki/${term}`
-  getLinks(url, links => {
+  getLinks(url).then(links => {
     const query = `
       MERGE (c:Article {slug: {term} })
       FOREACH (
@@ -83,25 +85,25 @@ app.get('/lookup/:term', (req, res) => {
         MERGE (c)-[:LINK {name: d.name}]->(a)
       )
     `
-    cypher(query, {term, links}).then(() => {
-      const query = `
-        MATCH (c:Article {slug: {term}})
-        MATCH (c)-[r]->(a)
-        OPTIONAL MATCH (:User)-[k]->(a)
-        RETURN a, r.name, type(k)
-      `
-      cypher(query, {term, links}).then(({records}) => {
-        const subtree = records.map(rec => {
-          return {
-            slug: rec.get(0).properties.slug,
-            url: rec.get(0).properties.url,
-            name: rec.get(1),
-            known: rec.get(2) || "KNOWN_VOID",
-          }
-        });
-        res.send(JSON.stringify(subtree));
-      })
-    })
+    return cypher(query, {term, links})
+  }).then(() => {
+    const query = `
+      MATCH (c:Article {slug: {term}})
+      MATCH (c)-[r]->(a)
+      OPTIONAL MATCH (:User)-[k]->(a)
+      RETURN a, r.name, type(k)
+    `
+    return cypher(query, {term})
+  }).then(({records}) => {
+    const subtree = records.map(rec => {
+      return {
+        slug: rec.get(0).properties.slug,
+        url: rec.get(0).properties.url,
+        name: rec.get(1),
+        known: rec.get(2) || "KNOWN_VOID",
+      }
+    });
+    res.send(JSON.stringify(subtree));
   })
 })
 
