@@ -21,6 +21,7 @@ type View = State -> HTML Event
 view :: View
 view state =
   div do
+    viewErrors state
     h1 $ text "¿capisce?"
     input ! type' "text" ! value state.inputText #! onChange ChangeInput
     button #! onClick InitRootArticle $ text "Set"
@@ -28,6 +29,12 @@ view state =
     button #! onClick (const $ (ExpandAllRelevant Nil)) $ text "Expand all"
     button #! onClick (const $ (CollapseAllRelevant Nil)) $ text "Collapse all"
     div $ for_ state.article $ flip viewArticleTree Nil
+
+viewErrors :: View
+viewErrors state =
+  case state.errors of
+    Just errors -> div $ for_ errors $ (text <<< show)
+    Nothing -> div $ text ""
 
 viewArticleTree :: Article -> SlugPath -> HTML Event
 viewArticleTree article@(Article a) slugpath =

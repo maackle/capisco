@@ -45,6 +45,8 @@ data Event
   | RequestArticleData SlugPath
   | ReceiveArticleData SlugPath (Array Article) String
 
+  | ShowErrors AppErrors
+
 type AppEffects fx = (ajax :: AJAX, console :: CONSOLE | fx)
 
 nofx = noEffects
@@ -110,28 +112,6 @@ foldp (CollapseAllRelevant slugpath) state =
           KnownNo, Just links ->
             Article a { links = Just $ links <#> doCollapse, expanded = false }
           _, _ -> Article a
--- -- TODO
--- foldp (ExpandAllRelevant slugpath) state =
---   updateArticleW slugpath state \(Article a) ->
---     doExpand (Article a)
---     where
---       doExpand :: Article -> Writer (Array (FX fx)) Article
---       doExpand (Article a) =
---         case a.known, a.links of
---           KnownNo, Just links ->
---             let
---               writers :: M.Map Slug (Writer (Array (FX fx)) Article)
---               writers = links <#> doExpand
---
---               links' = writers <#> (fst <<< runWriter)
---               -- fx :: FX fx
---               fx = execWriter (sequence $ (fromFoldable $ M.values writers))
---               -- fx = foldl (\w a -> concat $ [a, (execWriter w)]) [] writers
---             in do
---               tell [ pure $ Just $ SetArticleToggle slugpath true]
---               tell fx
---               pure $ Article a {links = Just links'}
---           _, _ -> pure $ Article a
 
 
 foldp (RequestMarkArticle slugpath known) state =
@@ -172,35 +152,23 @@ foldp (RequestArticleData slugpath) state =
   case getArticle slugpath state of
     Just (Article article) ->
       let
-        t :: ∀ fx'. Aff (ajax :: AJAX | fx') (Ex (Maybe Event))
-        t = do
-          let url :: URL
-              url = normalizeURL $ state.config.apiBase <> "/lookup/" <> article.slug
+        url :: URL
+        url = normalizeURL $ state.config.apiBase <> "/lookup/" <> article.slug
+
+        -- fx :: ∀ fx'. Aff (ajax :: AJAX | fx') (Ex (Maybe Event))
+        fx = do
           res <- (mapAppError <<< except) <$> (attempt $ AX.get url)
+          let t = do
+                    subtree <- parseSubtree =<< _.response <$> res
+                    let
+                      s :: Array Article
+                      s = subtree
+                    preview <- parsePreview =<< _.response <$> res
 
-          let
-            x :: Ex (Maybe Event)
-            x = do
-              subtree <- parseSubtree =<< _.response <$> res
-              let
-                s :: Array Article
-                s = subtree
-              preview <- parsePreview =<< _.response <$> res
-
-              pure $ Just $ ReceiveArticleData slugpath subtree preview
-          pure x
-
-        run :: ∀ fx'. Ex (Maybe Event) -> (FX fx')
-        -- run :: Ex (Array (Maybe Event)) -> Array (FX fx)
-        run x = case runExcept x of
-          Right fx' -> pure fx'
-          Left es ->
-            -- (fromFoldable es) <#> (show >>> error >>> \t -> t *> pure Nothing )
-            foldr (\e a -> (error $ show e) *> a) (pure Nothing) es
-            -- (map ((\t -> t *> pure Nothing) <<< error <<< show) (fromFoldable es))
-
-        -- fx :: ∀ fx'. Array (FX fx')
-        fx = run =<< (t)
+                    pure $ Just $ ReceiveArticleData slugpath subtree preview
+          case runExcept t of
+            Right fx' -> pure fx'
+            Left es -> pure $ Just $ ShowErrors es
       in
         withfx state $ [ fx ]
     Nothing ->
@@ -212,6 +180,11 @@ foldp (ReceiveArticleData slugpath articles preview) state =
       { links = Just $ mkSlugMap articles
       , preview = Just preview
       , expanded = true }
+
+foldp (ShowErrors es) state =
+  withfx
+    (state {errors = Just es})
+    [ (foldr (\e a -> (error $ show e) *> a) (pure Nothing) es) ]
 
 
 updateRoute :: Route -> RoutingState -> RoutingState

@@ -3,6 +3,7 @@ module App.State where
 import Prelude
 
 import App.Config (Config(..), config)
+import App.Error (AppErrors)
 import App.Routes (Route, match)
 import Data.List (List)
 import Data.Map (Map)
@@ -18,6 +19,7 @@ init url =
   { article: Nothing
   , inputText: "homotopy"
   , config: config
+  , errors: Nothing
   , routing:
     { title: config.title
       , route: match url
@@ -30,6 +32,7 @@ type State =
   , config :: Config
   , article :: Maybe Article
   , inputText :: String
+  , errors :: Maybe AppErrors
   }
 
 newtype Article = Article ArticleData
