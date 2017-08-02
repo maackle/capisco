@@ -1,20 +1,25 @@
 module App.Events where
 
+import App.Error
 import App.State
 import Data.Either
 import Prelude
 
 import App.Optics (mkArticleLens, rootArticle)
-import App.Parsers (parseSubtree)
+import App.Parsers (parseSubtree, parsePreview)
 import App.Routes (Route)
-import Control.Monad.Aff (Aff, attempt)
+import Control.Monad.Aff (Aff, attempt, liftEff')
 import Control.Monad.Aff.Console (CONSOLE, error, log)
 import Control.Monad.Eff.Exception (Error)
+import Control.Monad.Except (except, mapExcept, runExcept)
 import Control.Monad.Writer (Writer, execWriter, runWriter, tell)
 import Data.Array (concat, foldl, fromFoldable, uncons)
 import Data.Bifunctor (bimap, lmap)
+import Data.Foldable (foldr)
 import Data.Lens (_Just, (%~), (.~), (^?))
 import Data.List (List(..), (:))
+import Data.List.NonEmpty (cons, singleton)
+import Data.List.Types (NonEmptyList(..))
 import Data.Map as M
 import Data.Maybe (Maybe(..), maybe)
 import Data.Traversable (sequence)
@@ -37,8 +42,8 @@ data Event
   | RequestMarkArticle SlugPath Known
   | ReceiveMarkArticle SlugPath (Either String Known)
 
-  | RequestArticleTree SlugPath
-  | ReceiveArticleTree SlugPath (Either String (Array Article))
+  | RequestArticleData SlugPath
+  | ReceiveArticleData SlugPath (Array Article) String
 
 type AppEffects fx = (ajax :: AJAX, console :: CONSOLE | fx)
 
@@ -48,6 +53,13 @@ withfx = { state: _, effects: _ }
 
 fxLog msg = [ log msg *> pure Nothing ]
 fxError msg = [ error msg *> pure Nothing ]
+
+--
+-- notifyException :: ∀ a fx. (Model State fx -> Model State fx) -> Either String a -> Model State fx
+-- notifyException f =
+--   case _ of
+--     Right s -> { state: f s, effects: [] }
+--     Left e -> { state: s, effects: [fxError e]}
 
 type Model s fx = EffModel s Event (AppEffects fx)
 type FX fx = Aff (AppEffects (CoreEffects fx)) (Maybe Event)
@@ -63,15 +75,15 @@ foldp (ChangeInput ev) state =
 foldp (InitRootArticle ev) state =
   withfx
   (setRootArticle article state)
-  $ [ pure $ Just $ RequestArticleTree Nil ]
+  $ [ pure $ Just $ RequestArticleData Nil ]
     where
       slug = state.inputText
-      article = initArticle slug KnownVoid -- TODO: read known value
+      article = initArticle slug KnownVoid Nothing -- TODO: read known value
 
 foldp (SetArticleToggle slugpath expanded) state =
   updateArticleW slugpath state \(Article a) -> do
     tell $ case expanded, a.links of
-      true, Nothing -> [ pure $ Just $ RequestArticleTree slugpath ]
+      true, Nothing -> [ pure $ Just $ RequestArticleData slugpath ]
       _, _ -> []
     pure $ Article a {expanded = expanded}
 
@@ -152,37 +164,54 @@ foldp (ReceiveMarkArticle slugpath result) state =
     Right known ->
       updateArticleW slugpath state \(Article a) -> do
         tell $ case known of
-          KnownNo -> [ pure $ Just $ RequestArticleTree slugpath ]
+          KnownNo -> [ pure $ Just $ RequestArticleData slugpath ]
           _ -> []
         pure $ Article a { known = known }
 
-foldp (RequestArticleTree slugpath) state =
+foldp (RequestArticleData slugpath) state =
   case getArticle slugpath state of
     Just (Article article) ->
       let
-        fetchEffect = do
+        t :: ∀ fx'. Aff (ajax :: AJAX | fx') (Ex (Maybe Event))
+        t = do
           let url :: URL
               url = normalizeURL $ state.config.apiBase <> "/lookup/" <> article.slug
-          res <- attempt $ AX.get url
+          res <- (mapAppError <<< except) <$> (attempt $ AX.get url)
 
           let
-            result :: Either String String
-            result = lmap show $ res <#> _.response
+            x :: Ex (Maybe Event)
+            x = do
+              subtree <- parseSubtree =<< _.response <$> res
+              let
+                s :: Array Article
+                s = subtree
+              preview <- parsePreview =<< _.response <$> res
 
-          pure $ Just $ ReceiveArticleTree slugpath (result >>= parseSubtree)
+              pure $ Just $ ReceiveArticleData slugpath subtree preview
+          pure x
 
-      in withfx state $ [ fetchEffect ]
+        run :: ∀ fx'. Ex (Maybe Event) -> (FX fx')
+        -- run :: Ex (Array (Maybe Event)) -> Array (FX fx)
+        run x = case runExcept x of
+          Right fx' -> pure fx'
+          Left es ->
+            -- (fromFoldable es) <#> (show >>> error >>> \t -> t *> pure Nothing )
+            foldr (\e a -> (error $ show e) *> a) (pure Nothing) es
+            -- (map ((\t -> t *> pure Nothing) <<< error <<< show) (fromFoldable es))
+
+        -- fx :: ∀ fx'. Array (FX fx')
+        fx = run =<< (t)
+      in
+        withfx state $ [ fx ]
     Nothing ->
       nofx state
 
-foldp (ReceiveArticleTree slugpath result) state =
-  case result of
-    Left err -> withfx state $ fxError err
-    Right articles ->
-      updateArticleW slugpath state \(Article a) ->
-        pure $ Article a
-          { links = Just $ mkSlugMap articles
-          , expanded = true }
+foldp (ReceiveArticleData slugpath articles preview) state =
+  updateArticleW slugpath state \(Article a) ->
+    pure $ Article a
+      { links = Just $ mkSlugMap articles
+      , preview = Just preview
+      , expanded = true }
 
 
 updateRoute :: Route -> RoutingState -> RoutingState

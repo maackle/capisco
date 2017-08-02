@@ -54,6 +54,7 @@ viewArticleTree article@(Article a) slugpath =
       div do
         span ! className "known-icon-bullet" $ knownIcon a.known
         text $ a.slug
+        text $ fromMaybe "..." a.preview
         for_ [KnownVoid, KnownNo, KnownYes] \k ->
           button #! onClick (const $ RequestMarkArticle slugpath k) $ knownIcon k
         button #! onClick (const $ SetArticleToggle slugpath (not a.expanded)) $ text buttonText

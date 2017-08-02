@@ -41,6 +41,7 @@ quux =
     , expanded: false
     , known: KnownVoid
     , links: Just $ fromFoldable [Tuple "bar" $ bar]
+    , preview: Nothing
     }
 
 bar :: Article
@@ -51,6 +52,7 @@ bar =
     , expanded: false
     , known: KnownVoid
     , links: Just $ fromFoldable [Tuple "foo" $ foo]
+    , preview: Nothing
     }
 
 foo :: Article
@@ -61,6 +63,7 @@ foo =
     , expanded: false
     , known: KnownVoid
     , links: Nothing
+    , preview: Nothing
   }
 
 testMap :: Map String (Map String (Map String (Map String String)))

@@ -33,21 +33,24 @@ type State =
   }
 
 newtype Article = Article ArticleData
+
 type ArticleData =
   { slug :: Slug
   , url :: String
   , expanded :: Boolean
-  , known :: Known
+  , known :: Known  -- TODO: part of fetched state, so could be a Maybe
   , links :: Maybe (Map Slug Article)
+  , preview :: Maybe String
   }
 
-initArticle :: Slug -> Known -> Article
-initArticle slug known = Article
+initArticle :: Slug -> Known -> (Maybe String) -> Article
+initArticle slug known preview = Article
   { slug: slug
   , url: "https://en.wikipedia.org/wiki/" <> slug
   , expanded: false
   , known: known
   , links: Nothing
+  , preview: preview
   }
 
 instance showArticle :: Show Article where

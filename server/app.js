@@ -63,6 +63,34 @@ const getLinks = (url) => {
   })
 }
 
+const getParagraphs = (url) => {
+  let paragraphs = [], done = false;
+  return new Promise((resolve, reject) => {
+    osmosis
+        .get(url)
+        .find('#bodyContent .mw-parser-output')
+        .find('p, #toc > .toctitle')
+        .set('text')
+        .set({
+          toctitle: 'h2',
+        })
+        .data(listing => {
+          const {text, url} = listing
+          if(listing.toctitle) {
+            // only read links up to the table of contents
+            done = true
+          }
+          if (!done && text) {
+            paragraphs.push(text)
+          }
+        })
+        .done(() => resolve(paragraphs))
+        .log(console.log)
+        .error(console.log)
+        .debug(console.log)
+  })
+}
+
 app.use(function(req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
@@ -76,34 +104,39 @@ app.get('/', function (req, res) {
 app.get('/lookup/:term', (req, res) => {
   const {term} = req.params
   const url = `https://en.wikipedia.org/wiki/${term}`
-  getLinks(url).then(links => {
+  Promise.all([getLinks(url), getParagraphs(url)]).then(([links, paragraphs]) => {
+    const preview = paragraphs.join("\n\n");
     const query = `
       MERGE (c:Article {slug: {term} })
       FOREACH (
         d IN {links} |
-        MERGE (a:Article {slug: d.slug, url: d.url})
+        MERGE (a:Article {slug: d.slug, url: d.url, preview: {preview}})
         MERGE (c)-[:LINK {name: d.name}]->(a)
       )
     `
-    return cypher(query, {term, links})
-  }).then(() => {
-    const query = `
-      MATCH (c:Article {slug: {term}})
-      MATCH (c)-[r]->(a)
-      OPTIONAL MATCH (:User)-[k]->(a)
-      RETURN a, r.name, type(k)
-    `
-    return cypher(query, {term})
-  }).then(({records}) => {
-    const subtree = records.map(rec => {
-      return {
-        slug: rec.get(0).properties.slug,
-        url: rec.get(0).properties.url,
-        name: rec.get(1),
-        known: rec.get(2) || "KNOWN_VOID",
-      }
-    });
-    res.send(JSON.stringify(subtree));
+    cypher(query, {term, links, preview})
+    .then(() => {
+      const query = `
+        MATCH (c:Article {slug: {term}})
+        MATCH (c)-[r]->(a)
+        OPTIONAL MATCH (:User)-[k]->(a)
+        RETURN a, r.name, type(k)
+      `
+      return cypher(query, {term})
+    }).then(({records}) => {
+      const subtree = records.map(rec => {
+        return {
+          slug: rec.get(0).properties.slug,
+          url: rec.get(0).properties.url,
+          name: rec.get(1),
+          known: rec.get(2) || "KNOWN_VOID",
+        }
+      });
+      res.send(JSON.stringify({
+        links: subtree,
+        preview: preview,
+      }));
+    })
   })
 })
 
