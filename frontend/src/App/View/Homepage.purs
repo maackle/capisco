@@ -1,18 +1,16 @@
 module App.View.Homepage where
 
-import Data.Maybe
-import Text.Smolder.HTML
+import Data.Maybe (Maybe(..), fromMaybe)
+import Text.Smolder.HTML (br, button, div, h1, input, li, span, ul)
 
 import App.Events (Event(..))
-import App.State (Article(..), Known(..), SlugPath, State(..))
-import Control.Bind (discard)
+import App.State (Article(Article), Known(KnownNo, KnownYes, KnownVoid), SlugPath, State)
 import Data.Foldable (for_)
-import Data.Function (flip, ($))
 import Data.List (List(..), length, snoc)
-import Prelude hiding (div)
+import Prelude (const, discard, flip, not, show, ($), (<<<), (>))
 import Pux.DOM.Events (onChange, onClick)
 import Pux.DOM.HTML (HTML)
-import Text.Smolder.HTML.Attributes (className, href, type', value)
+import Text.Smolder.HTML.Attributes (className, type', value)
 import Text.Smolder.Markup (text, (!), (#!))
 
 

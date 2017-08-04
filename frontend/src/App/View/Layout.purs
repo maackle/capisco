@@ -1,25 +1,24 @@
 module App.View.Layout where
 
+import Prelude hiding (div)
+
 import App.Events (Event)
 import App.Routes (Route(NotFound, Home))
-import App.State (State(..))
+import App.State (State)
 import App.View.Homepage as Homepage
 import App.View.NotFound as NotFound
-import CSS (CSS, backgroundColor, borderRadius, color, display, fontSize, fromString, inlineBlock, key, marginLeft, marginRight, marginTop, maxWidth, padding, pct, px, value, (?))
-import CSS.Border (border, solid)
+import CSS (CSS, backgroundColor, borderRadius, color, display, fontSize, fromString, inlineBlock, key, marginRight, marginTop, maxWidth, padding, pct, px, value, (?))
 import CSS.Common (none)
-import CSS.ListStyle (listStyle)
 import CSS.ListStyle.Type (listStyleType)
 import CSS.Text (textDecoration, noneTextDecoration, letterSpacing)
 import CSS.Text.Transform (textTransform, uppercase)
 import CSS.TextAlign (center, textAlign)
 import Color (rgb)
-import Control.Bind (discard)
-import Data.Function (($), (#))
 import Pux.DOM.HTML (HTML, style)
 import Text.Smolder.HTML (div)
 import Text.Smolder.HTML.Attributes (className)
 import Text.Smolder.Markup ((!))
+
 
 view :: State -> HTML Event
 view st =

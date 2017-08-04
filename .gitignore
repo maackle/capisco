@@ -1,3 +1,6 @@
+*.swp
 .tags*
 old
+node_modules/
+bower_components/
 
